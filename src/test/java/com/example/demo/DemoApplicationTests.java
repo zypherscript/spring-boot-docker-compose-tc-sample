@@ -1,40 +1,29 @@
 package com.example.demo;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.demo.entity.Post;
 import com.example.demo.repository.PostRepository;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Import;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.utility.DockerImageName;
 
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("tc")
-class DemoApplicationTests {
-
-  @Container
-  static PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(
-      DockerImageName.parse("postgres:15.1"));
-
-  static {
-    POSTGRES.start();
-  }
-
-  @DynamicPropertySource
-  static void props(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", POSTGRES::getUsername);
-    registry.add("spring.datasource.password", POSTGRES::getPassword);
-  }
+@Import(TestContainersConfiguration.class)
+public class DemoApplicationTests {
 
   @Autowired
   private PostRepository postRepository;
+
+  @Autowired
+  protected TestRestTemplate testRestTemplate;
 
   @Test
   void testFindAll() {
@@ -46,10 +35,11 @@ class DemoApplicationTests {
 
     postRepository.save(post);
 
-    var posts = postRepository.findAll();
-    assertEquals(posts.size(), 1);
-    assertEquals(posts.get(0).getTitle(), title);
-    assertEquals(posts.get(0).getBody(), body);
+    var posts = testRestTemplate.exchange("/api/posts",
+        HttpMethod.GET, null, new ParameterizedTypeReference<List<Post>>() {
+        });
+
+    assertThat(posts.getBody()).isEqualTo(List.of(post));
   }
 
 }
