@@ -1,10 +1,12 @@
 package com.example.demo;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.example.demo.entity.Post;
 import com.example.demo.repository.PostRepository;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,21 +27,38 @@ public class DemoApplicationTests {
   @Autowired
   protected TestRestTemplate testRestTemplate;
 
-  @Test
-  void testFindAll() {
-    String title = "title";
-    String body = "body";
-    var post = new Post();
-    post.setTitle(title);
-    post.setBody(body);
+  private Post post;
+
+  @BeforeEach
+  void init() {
+    post = new Post();
+    post.setTitle("title");
+    post.setBody("body");
 
     postRepository.save(post);
+  }
 
+  @AfterEach
+  void tearDown() {
+    postRepository.deleteAll();
+  }
+
+  @Test
+  void testFindAll() {
+    var posts = postRepository.findAll();
+
+    assertEquals(posts.size(), 1);
+    assertEquals(posts.get(0).getTitle(), post.getTitle());
+    assertEquals(posts.get(0).getBody(), post.getBody());
+  }
+
+  @Test
+  void testRequest() {
     var posts = testRestTemplate.exchange("/api/posts",
         HttpMethod.GET, null, new ParameterizedTypeReference<List<Post>>() {
         });
 
-    assertThat(posts.getBody()).isEqualTo(List.of(post));
+    assertEquals(posts.getBody(), List.of(post));
   }
 
 }
